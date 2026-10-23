@@ -1,111 +1,137 @@
-# Airline Loyalty Program — Data Warehouse & ETL
-**SQL Server · SSIS workflow design · Dimensional modeling · Python analytics**
+# Airline Loyalty — Data Warehouse & Customer Analytics
 
-An academic data-warehousing project focused on organizing airline customer loyalty and flight activity data for business analysis. The repository includes **SQL Server staging and warehouse DDL**, Python/SQL analytical queries, a presentation, and screenshots of an SSIS-style ETL workflow.
+**SQL Server · SSIS · Dimensional Modeling · ETL · Python · Business Intelligence**
 
-> **Evidence scope:** The repository contains SQL scripts, analysis code, screenshots, and a presentation. It does **not** currently include the original Excel input files, an executable SSIS package (`.dtsx`), a packaged SQL Server database, or a reproducible end-to-end ETL run. The screenshots illustrate project work but do not prove that an SSIS pipeline can be rebuilt from this repository alone.
+An academic data-engineering and analytics project built around an airline loyalty program. The goal was to transform customer and flight activity records into a **queryable data warehouse**, then use SQL and Python to explore enrollment trends, loyalty-card behavior and flight activity.
 
-## Data flow
+**Engineering focus:** source-to-warehouse modeling, a staged ETL design, relational integrity, dimension/fact separation and translating business questions into analytical queries.
+
+> **Evidence scope:** The repository includes SQL schemas, an analytics script, a project presentation and authentic saved ETL/warehouse illustrations. The original source workbooks, runnable SSIS `.dtsx` packages and populated database are **not committed**. It is a documented academic solution, **not** a reproducible one-command ETL or deployed BI product.
+
+## From source records to analytical insights
 
 ```mermaid
 flowchart LR
-  E["Source spreadsheets<br/>(not included)"] --> S["Staging tables<br/>Customer_History_SA / Calendar_SA / Activity_SA"]
-  S --> T["SSIS ETL workflow<br/>shown in screenshots"]
-  T --> D["Warehouse dimensions<br/>customer, location, demographics,<br/>loyalty profile, date"]
-  T --> F["Fact_Flight_Activity<br/>monthly flight measures"]
-  D --> A["SQL / Python analysis"]
-  F --> A
-  A --> V["Plots / business exploration"]
+    SRC["Source Excel workbooks<br/>not included"] --> SA["SQL Server staging<br/>Customer_History_SA<br/>Calendar_SA<br/>Activity_SA"]
+    SA --> ETL["SSIS transformations<br/>documented by screenshots"]
+    ETL --> D["Snowflake dimensions<br/>customer, location,<br/>demographics, loyalty, date"]
+    ETL --> F["Flight activity fact<br/>flights, distance, points"]
+    D --> SQL["SQL analytical queries"]
+    F --> SQL
+    SQL --> PY["Pandas + Matplotlib<br/>Seaborn charts"]
+    PY --> BUSINESS["Business interpretation<br/>enrollment, travel, loyalty"]
 ```
 
-The diagram describes the documented project workflow; the actual SSIS package files are not available in this repo.
+The diagram describes the academic workflow documented in this repository. **The SSIS project itself is not available for execution.**
 
-## Relational model
+## Data warehouse design
 
-[View the SQL schema](database_setup.sql). The warehouse is centered on `Fact_Flight_Activity`, which references customer and month-level date dimensions. `Dim_Customer` references normalized profile, demographic and location tables: a **snowflake-style** model.
+A **snowflake-style dimensional model** separates customer, geographic, demographic, loyalty and time attributes from flight-activity measures.
 
-![Snowflake-style warehouse schema](shema%20en%20flacon%20%20de%20neige.png)
+![Original snowflake warehouse schema](shema%20en%20flacon%20%20de%20neige.png)
 
-| Table | Role |
+| Warehouse table | Grain / responsibility | Important data |
+| --- | --- | --- |
+| `Dim_Customer` | One modeled customer record | Business loyalty number, enrollment/cancellation dates, links to profile dimensions |
+| `Dim_Location` | Reusable location descriptors | City, province, country, postal code |
+| `Dim_Demographics` | Reusable demographic descriptors | Gender, education, marital status |
+| `Dim_Loyalty_Profile` | Loyalty classification | Card category, enrollment type |
+| `Dim_Date` | Month-level calendar reference | Month, quarter and year starts |
+| `Fact_Flight_Activity` | Customer-period flight activity as intended | Flights, distances, accumulated/redeemed points, redemption value |
+
+The model uses **surrogate primary keys** and foreign keys from customer and fact records to their dimensions. The SQL DDL is available in [`database_setup.sql`](database_setup.sql).
+
+**Modeling trade-off:** normalization avoids repeating demographic and location labels for every fact row, but reporting requires more joins than a flattened star schema. The fact-grain uniqueness rule is **not enforced by a composite unique constraint** in the current SQL DDL, so duplicates and periodicity must be validated before interpreting totals.
+
+## ETL workflow evidence
+
+The source records are first represented by staging tables. The staging layer follows the observed Excel/SSIS input types, while the warehouse organizes customers and monthly activities into related analytical tables.
+
+### SSIS control flow
+
+![Authentic project control-flow screenshot](etl_control_flow.png)
+
+### Customer dimension data flow
+
+![Authentic project customer-dimension data-flow screenshot](etl_data_flow_dimcustomer.png)
+
+**What these images show:** the flow and transformation design captured during the academic project. **What they do not establish:** a packaged and independently runnable ETL, because the source workbooks, SSIS package definitions, runtime connection managers and execution logs are not provided.
+
+[Review staging definitions](Airline-Loyalty+Program_SA.sql) · [Review warehouse DDL](database_setup.sql) · [Academic project presentation](Flying-Airplane%20%281%29.pptx)
+
+## Business questions explored
+
+The repository includes five SQL-backed investigations in [`analysis_queries.py`](analysis_queries.py).
+
+| Question | Relevant warehouse components | Analytical approach |
+| --- | --- | --- |
+| How did new enrollments evolve? | `Dim_Customer` | Monthly counts; highlight a February–April 2018 campaign period |
+| Who enrolled during the campaign? | Customer + demographics | Segment new enrollments by gender and education |
+| How did summer flight activity compare? | Flight fact + date | Compare June–August flight totals for 2017 and 2018 |
+| Which provinces have higher recorded flight volume? | Flight fact + customer + location | Aggregate flights by province |
+| How do accumulated loyalty points vary by card type? | Flight fact + customer + loyalty profile | Compare average accumulated points across card categories |
+
+### Existing analytical visualizations
+
+**Monthly loyalty enrollments — historical project chart**
+
+![Loyalty program enrollment trend with campaign period highlighted](imapct%20de%20la%20campagne%20sur%20les%20nouvelles%20adhesions.png)
+
+**Flight volume by province — historical project chart**
+
+![Top provinces by recorded flight volume](top%2010%20des%20Provinces%20par%20volume%20de%20vols.png)
+
+These plots are **committed project artifacts**, not results newly regenerated during this documentation review. Highlighting a promotional period illustrates a **time association**, not proof that the campaign caused the enrollment changes.
+
+## Technology and project artifacts
+
+| Technology | Role in the project |
 | --- | --- |
-| `Dim_Location` | Customer geography |
-| `Dim_Demographics` | Demographic attributes |
-| `Dim_Loyalty_Profile` | Loyalty tier and enrollment type |
-| `Dim_Date` | Month/quarter/year reference |
-| `Dim_Customer` | Customer reference and dimension relationships |
-| `Fact_Flight_Activity` | Flight activity, distances, points earned/redeemed |
+| **Microsoft SQL Server / T-SQL** | Source staging, dimensional tables, joins and aggregations |
+| **SSIS** | Designed ETL control/data flows illustrated in the committed screenshots |
+| **Python + SQLAlchemy + pyodbc** | Connect to the warehouse and execute T-SQL |
+| **Pandas** | Materialize SQL query results for analysis |
+| **Matplotlib + Seaborn** | Produce business-facing charts |
 
-[Staging-table schema](Airline-Loyalty+Program_SA.sql) defines `Customer_History_SA`, `Calendar_SA`, and `Activity_SA`.
+```text
+Airline-Loyalty+Program_SA.sql       Staging table DDL
+database_setup.sql                  Snowflake warehouse table DDL
+analysis_queries.py                 SQL analysis and plotting code
+etl_control_flow.png                Existing SSIS control-flow capture
+etl_data_flow_dimcustomer.png       Existing SSIS transformation capture
+shema en flacon  de neige.png       Existing warehouse schema illustration
+*.png                               Historical analytical visualizations
+Flying-Airplane (1).pptx             Academic project presentation
+```
 
-## ETL documentation
+## How to inspect or reproduce the available parts
 
-**Control flow** — recorded workflow illustration:
+**Prerequisites:** Microsoft SQL Server, an ODBC Driver for SQL Server, Python and the original source data/SSIS definitions if a complete ETL rebuild is intended.
 
-![SSIS control flow](etl_control_flow.png)
-
-**Customer dimension data flow** — recorded transformation illustration:
-
-![SSIS customer data flow](etl_data_flow_dimcustomer.png)
-
-These are existing project images. Rebuilding the ETL would require the missing source spreadsheets, SSIS project files, connection managers, transformations, and execution settings.
-
-## Analytical questions
-
-The script [`analysis_queries.py`](analysis_queries.py) issues SQL queries and generates plots to explore:
-
-1. Monthly customer enrollment, including a highlighted 2018 promotional period.
-2. Demographic profiles of members enrolling during the campaign.
-3. Summer flight activity comparison for 2017 and 2018.
-4. Flight activity by province.
-5. Average loyalty points accumulated by card type.
-
-**Existing figures:**
-
-![Customer enrollments around the promotional period](imapct%20de%20la%20campagne%20sur%20les%20nouvelles%20adhesions.png)
-
-[View the existing province-flight visualization](top%2010%20des%20Provinces%20par%20volume%20de%20vols.png).
-
-These are historical visual artifacts; exact numerical claims (for example, segment revenue shares) have **not** been independently reproduced from included data and are intentionally omitted.
-
-## Files
-
-| Path | Content |
-| --- | --- |
-| [`Airline-Loyalty+Program_SA.sql`](Airline-Loyalty+Program_SA.sql) | Staging schema |
-| [`database_setup.sql`](database_setup.sql) | Warehouse DDL |
-| [`analysis_queries.py`](analysis_queries.py) | SQL/Python exploratory analysis |
-| [`etl_control_flow.png`](etl_control_flow.png) | Existing control-flow screenshot |
-| [`etl_data_flow_dimcustomer.png`](etl_data_flow_dimcustomer.png) | Existing transformation screenshot |
-| [`Flying-Airplane (1).pptx`](Flying-Airplane%20%281%29.pptx) | Academic project presentation |
-
-## Reproduction notes
-
-Requires **Microsoft SQL Server**, an appropriate **ODBC Driver for SQL Server**, and (for rebuilding the ETL) **SSIS** and the original input data.
-
-1. Review and create staging tables with `Airline-Loyalty+Program_SA.sql` in your own **development database**.
-2. Review and create warehouse tables with `database_setup.sql` in dependency order.
-3. Rebuild/execute the missing ETL transformations from the source spreadsheets (not supplied).
-4. Install Python dependencies: `pandas`, `matplotlib`, `seaborn`, `SQLAlchemy`, `pyodbc`.
-5. Update the **local** `server`, `database`, and ODBC driver settings in `analysis_queries.py` before running it.
+1. Create an isolated **development database**, then review and execute [staging DDL](Airline-Loyalty+Program_SA.sql).
+2. Review and execute [warehouse DDL](database_setup.sql), creating referenced dimensions before `Dim_Customer` and `Fact_Flight_Activity`.
+3. Use a compatible ETL solution and source workbooks to populate the staging/warehouse tables. **These inputs are not in the repository.**
+4. Review the local connection configuration in [`analysis_queries.py`](analysis_queries.py): it currently targets SQL Server on `LOCALHOST`, database `DW_Flights` and **ODBC Driver 17 for SQL Server** with Windows integrated authentication.
+5. Once a compatible and **populated** database is available, install dependencies and execute the analysis script:
 
 ```bash
 python -m pip install pandas matplotlib seaborn sqlalchemy pyodbc
 python analysis_queries.py
 ```
 
-The Python command requires a **populated** warehouse and working Windows/ODBC authentication; it is not an out-of-the-box demo. No complete ETL or analytics test run was performed as part of this documentation update.
+This is a **conditional reproduction recipe**, not a guaranteed runnable demo. The Python script uses `plt.show()`, so charts are displayed interactively rather than automatically written to PNG. A SQL Server instance, valid driver/authentication and source data are necessary.
 
-## Design decisions and known issues
+## Data-quality and methodological considerations
 
-- **Snowflake-style dimensions:** reduce redundant customer attributes but add joins to reporting queries.
-- **Monthly date grain:** supports month-based activity reporting; finer-grain analysis would need a different date model.
-- **Staging before transformation:** separates imported spreadsheet types from normalized warehouse attributes.
-- **Data typing:** the original DDL uses `FLOAT` for loyalty IDs and monetary measures; production schema design should prefer explicit integer/string business keys and decimal monetary types.
-- **Query validation:** the province analysis uses a `DISTINCT` subset that may collapse legitimate activity rows; validate grain and deduplication logic before relying on totals.
-- **Reproducibility:** missing SSIS packages/source files limit independent execution. Screenshots and design notes are not substitutes for runnable ETL.
+- **Business IDs should not be floating-point keys.** The staging and warehouse SQL currently use `FLOAT` for loyalty numbers; integer or character keys would be safer for identity and joins.
+- **Financial values require explicit precision.** `Salary`, `CLV` and some numeric measures use `FLOAT`; a production schema would ordinarily use suitable `DECIMAL` types where exactness matters.
+- **Deduplication needs a declared grain.** The province query applies `DISTINCT` to only customer and flight-count fields, which could collapse legitimate monthly activity rows. The loyalty-points analysis also deduplicates a subset of fact fields; both require grain-aware verification.
+- **Time-series comparison is descriptive.** Enrollment/flight changes and loyalty behavior may be influenced by seasonality, population changes or other causes. No causal attribution or forecasting accuracy is claimed.
+- **ETL validation is not reproducible here.** Missing SSIS source packages and workbooks prevent independent end-to-end execution.
+- **Operational checks are a next step.** Add source-to-target row-count checks, rejected-record logging, surrogate-key lookup audits and uniqueness/referential-integrity tests before treating the pipeline as production-ready.
 
-**Possible next steps:** add permitted synthetic data, export sanitized ETL packages, create integrity checks, and document measures without inventing results.
+## What this project demonstrates
 
-## Project context
+The most important experience is **turning raw operational records into a modeled analytical system**: identifying grains and measures, separating facts from dimensions, planning transformations, joining data across business entities and answering questions from an organized warehouse.
 
-Academic data-warehousing and business-analysis exercise. The work demonstrates a warehouse design and an ETL/analytics workflow, **not a production airline system**.
+**Project type:** academic data-engineering and business-analysis work. The repository documents the team exercise and its artifacts; individual contributions are not independently itemized here.
